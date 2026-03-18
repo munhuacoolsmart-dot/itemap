@@ -4,30 +4,36 @@ import os
 import webbrowser
 
 def generate_global_view(campuses):
-    """High-level Singapore map showing all three ITE campuses."""
-    m = folium.Map(location=[1.3521, 103.8198], zoom_start=11, tiles='openstreetmap')
+    """Creates a high-level overview of ITE's presence across Singapore."""
+    # Center of Singapore
+    m = folium.Map(location=[1.3521, 103.8198], zoom_start=12, tiles='openstreetmap')
     
-    fg = folium.FeatureGroup(name="ITE Campuses")
+    fg = folium.FeatureGroup(name="ITE Campus Locations")
     for key, c in campuses.items():
         folium.Marker(
             location=c["center"],
-            popup=f"<b>{c['name']}</b>",
-            tooltip=c["name"],
+            popup=f"<b>{c['name']}</b><br>Select from terminal for 3D details.",
+            tooltip=f"Click for {c['name']}",
             icon=folium.Icon(color=c["theme"], icon="university", prefix='fa')
         ).add_to(fg)
     
     fg.add_to(m)
-    output = "ITE_Global_Overview.html"
+    plugins.Fullscreen().add_to(m)
+    
+    output = "ITE_Singapore_Global_Overview.html"
     m.save(output)
     webbrowser.open('file://' + os.path.realpath(output))
+    print(f"\n[SUCCESS] Global Overview launched. Returning to menu...")
 
 def generate_detailed_map(c):
-    """Detailed campus map with Search, Satellite Start, and Light/Dark toggles."""
-    # Start with Satellite View
+    """Detailed campus map: Defaults to Satellite imagery with Light/Dark support."""
+    # Satellite URL for default start
     sat_url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+    
+    # Initialize with Satellite View
     m = folium.Map(location=c["center"], zoom_start=18, tiles=sat_url, attr='Esri')
     
-    # Add Layer Toggles
+    # Add Toggles (Light Mode is the first fallback)
     folium.TileLayer('openstreetmap', name="Light Mode").add_to(m)
     folium.TileLayer('cartodbdark_matter', name="Dark Mode").add_to(m)
     folium.TileLayer(sat_url, name="Satellite View", attr="Esri").add_to(m)
@@ -37,6 +43,7 @@ def generate_detailed_map(c):
     <div style="position:fixed; top:20px; left:20px; width:220px; background:rgba(255,255,255,0.9); 
          border:2px solid {c['hex']}; z-index:9999; padding:15px; border-radius:10px; font-family:sans-serif; box-shadow: 2px 2px 10px rgba(0,0,0,0.2);">
         <h4 style="margin:0; color:{c['hex']};">{c['name']}</h4>
+        <p style="font-size:12px; margin:5px 0;">Smart Campus Navigator</p>
         <hr>
         <div id="clock" style="font-weight:bold; font-size:16px;">--:--:--</div>
         <script>
@@ -46,28 +53,20 @@ def generate_detailed_map(c):
     """
     m.get_root().html.add_child(folium.Element(sidebar_html))
 
-    # Markers Feature Group (REQUIRED for Search Plugin)
+    # Landmarks & Search
     fg_landmarks = folium.FeatureGroup(name="Campus Landmarks")
     for loc in c["landmarks"]:
         folium.Marker(
             loc["pos"], 
-            name=loc["name"], # The 'name' attribute is what the Search bar looks for
+            name=loc["name"],
             popup=loc["name"],
             icon=folium.Icon(color=c["theme"], icon=loc["ico"], prefix='fa')
         ).add_to(fg_landmarks)
     
     fg_landmarks.add_to(m)
 
-    # 1. ADD SEARCH BAR
-    plugins.Search(
-        layer=fg_landmarks,
-        search_label='name',
-        placeholder="Search landmark (e.g. ICT, Aero)",
-        collapsed=False,
-        position='topright'
-    ).add_to(m)
-    
-    # 2. ADD EXTRA CONTROLS
+    # UI Controls
+    plugins.Search(layer=fg_landmarks, search_label='name', placeholder="Find building...", collapsed=False).add_to(m)
     folium.LayerControl(collapsed=False).add_to(m)
     plugins.Fullscreen().add_to(m)
     plugins.LocateControl().add_to(m)
@@ -75,7 +74,7 @@ def generate_detailed_map(c):
     file_name = f"{c['name'].replace(' ', '_')}_Dashboard.html"
     m.save(file_name)
     webbrowser.open('file://' + os.path.realpath(file_name))
-    print(f"[SUCCESS] {c['name']} Dashboard Launched.")
+    print(f"\n[SUCCESS] {c['name']} Detailed Dashboard launched. Returning to menu...")
 
 # --- DATA REPOSITORY ---
 campuses = {
@@ -92,7 +91,7 @@ campuses = {
         "center": [1.3705, 103.8596],
         "landmarks": [
             {"name": "Aero Hub", "pos": [1.3698, 103.8595], "ico": "plane"},
-            {"name": "First Avenue (Food)", "pos": [1.3705, 103.8598], "ico": "utensils"}
+            {"name": "First Avenue (Food Court)", "pos": [1.3705, 103.8598], "ico": "utensils"}
         ]
     },
     "3": {
@@ -105,22 +104,25 @@ campuses = {
     }
 }
 
-# --- MENU LOOP ---
+# --- MAIN INTERFACE ---
 while True:
-    print("\n" + "="*45)
-    print("   ITE SMART CAMPUS MASTER NAVIGATOR")
-    print("="*45)
-    print("0. Show Global Singapore View")
-    print("1. ITE College West")
-    print("2. ITE College Central")
-    print("3. ITE College East")
-    print("4. Exit")
+    print("\n" + "="*50)
+    print("      ITE SMART CAMPUS GEOSPATIAL INTERFACE")
+    print("="*50)
+    print("0. View National Campus Distribution (Global Overview)")
+    print("1. Analyze ITE College West (Choa Chu Kang)")
+    print("2. Analyze ITE College Central (Ang Mo Kio)")
+    print("3. Analyze ITE College East (Simei)")
+    print("4. Terminate Program")
     
-    choice = input("\nSelect Option (0-4): ")
+    choice = input("\nEnter selection (0-4): ")
+    
     if choice == "0":
         generate_global_view(campuses)
     elif choice in campuses:
         generate_detailed_map(campuses[choice])
     elif choice == "4":
-        print("Closing System. Good luck tomorrow!")
+        print("\nExiting.")
         break
+    else:
+        print("\n[!] Entry not recognized. Please choose 0, 1, 2, 3, or 4.")
